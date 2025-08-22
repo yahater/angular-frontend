@@ -1,0 +1,26 @@
+<div class="categories-container">
+  <div class="header">
+    <h2>📂 Expense Categories</h2>
+    <p>All available categories for organizing your expenses</p>
+  </div>
+  
+  <div class="categories-grid">
+    <div class="category-card" *ngFor="let category of categories" 
+         [style.border-left-color]="getCategoryColor(category.name)">
+      <div class="category-icon" [style.background-color]="getCategoryColor(category.name)">
+        {{ getCategoryIcon(category.name) }}
+      </div>
+      <div class="category-info">
+        <h3>{{ category.name | titlecase }}</h3>
+        <p class="category-id">ID: {{ category.id }}</p>
+        <div class="category-description">
+          {{ getCategoryDescription(category.name) }}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div *ngIf="categories.length === 0" class="no-categories">
+    <p>🔄 Loading categories...</p>
+  </div>
+</div>

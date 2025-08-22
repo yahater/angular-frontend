@@ -1,0 +1,177 @@
+<div class="expenses-container">
+  <!-- Balance Summary -->
+  <div class="balance-card">
+    <h2>💰 Balance Summary</h2>
+    <div class="balance-details">
+      <div class="balance-item">
+        <span class="user-name">{{ users[0]?.name || 'User 1' }}</span>
+        <span class="owes-amount">owes: ${{ balance.user1Owes.toFixed(2) }}</span>
+      </div>
+      <div class="balance-item">
+        <span class="user-name">{{ users[1]?.name || 'User 2' }}</span>
+        <span class="owes-amount">owes: ${{ balance.user2Owes.toFixed(2) }}</span>
+      </div>
+      <div class="net-balance" [class.positive]="balance.netBalance > 0" [class.negative]="balance.netBalance < 0">
+        <strong>
+          Net: {{ balance.netBalance >= 0 ? (users[1]?.name || 'User 2') : (users[0]?.name || 'User 1') }} 
+          owes ${{ Math.abs(balance.netBalance).toFixed(2) }}
+        </strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <button class="add-btn" (click)="toggleForm()">
+      {{ showForm ? '❌ Cancel' : '➕ Add Expense' }}
+    </button>
+    
+    <!-- Hot Buttons - Only show when form is not visible -->
+    <div class="hot-buttons" *ngIf="!showForm">
+      <button class="hot-btn hofer-btn" (click)="usePreset('hofer')">
+        🛒 Hofer/Spar
+      </button>
+      <button class="hot-btn apotheke-btn" (click)="usePreset('apotheke')">
+        💊 Apotheke
+      </button>
+      <button class="hot-btn bipa-btn" (click)="usePreset('bipa')">
+        🧴 Bipa/Dm
+      </button>
+    </div>
+    
+    <div class="filter-section">
+      <label>Filter by category:</label>
+      <select [(ngModel)]="selectedCategory" (change)="onCategoryChange()" class="category-filter">
+        <option value="all">All Categories</option>
+        <option *ngFor="let category of categories" [value]="category.id">
+          {{ category.name | titlecase }}
+        </option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Add Expense Form -->
+  <div class="expense-form" *ngIf="showForm">
+    <h3>Add New Expense</h3>
+    <form (ngSubmit)="addExpense()" #expenseForm="ngForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Who paid?</label>
+          <select [(ngModel)]="newExpense.user_id" name="user_id" required>
+            <option *ngFor="let user of users" [value]="user.id">{{ user.name }}</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input type="number" [(ngModel)]="newExpense.amount" name="amount" min="0" step="0.01" required>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          <select [(ngModel)]="newExpense.category_id" name="category_id" required>
+            <option *ngFor="let category of categories" [value]="category.id">
+              {{ category.name | titlecase }}
+            </option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Split Type</label>
+          <select [(ngModel)]="newExpense.split_type" name="split_type" required>
+            <option value="50-50">50/50 Split</option>
+            <option value="100-other">100% for Other Person</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" [(ngModel)]="newExpense.created_at" name="created_at" required>
+        </div>
+        
+        <div class="form-group">
+          <label>Description</label>
+          <input type="text" [(ngModel)]="newExpense.description" name="description" placeholder="What was this for?">
+        </div>
+      </div>
+
+      <button type="submit" [disabled]="!expenseForm.valid" class="submit-btn">
+        💾 Add Expense
+      </button>
+    </form>
+  </div>
+
+  <!-- Expenses List -->
+  <div class="expenses-list">
+    <h3>Recent Expenses ({{ filteredExpenses.length }})</h3>
+    
+    <div *ngIf="filteredExpenses.length === 0" class="no-expenses">
+      No expenses found. Add your first expense above! 🎯
+    </div>
+
+    <div class="expense-item" *ngFor="let expense of filteredExpenses" 
+         [class.paid-expense]="expense.paid"
+         [style.border-left-color]="getCategoryColor(expense.category?.name)">
+      <div class="expense-header">
+        <div class="expense-info">
+          <div class="category-badge" [style.background-color]="getCategoryColor(expense.category?.name)">
+            <span class="category-icon">{{ getCategoryIcon(expense.category?.name) }}</span>
+          </div>
+          <div class="expense-main-info">
+            <div class="expense-primary">
+              <span class="expense-user">{{ expense.user?.name }}</span>
+            </div>
+            <div class="expense-secondary">
+              <span class="expense-category-badge" [style.background-color]="getCategoryColor(expense.category?.name) + '20'">
+                {{ expense.category?.name | titlecase }}
+              </span>
+              <span class="expense-date">{{ expense.created_at | date:'MMM dd, yyyy' }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="expense-actions">
+          <button (click)="togglePaid(expense)" class="toggle-paid-btn" 
+                  [class.paid]="expense.paid">
+            {{ expense.paid ? '✅ Paid' : '⏳ Mark Paid' }}
+          </button>
+          <button (click)="deleteExpense(expense.id)" class="delete-btn">🗑️</button>
+        </div>
+      </div>
+      
+      <div class="expense-details">
+        <div class="expense-description">{{ expense.description || 'No description' }}</div>
+        <div class="expense-amounts">
+          <div class="total-amount" [ngClass]="getAmountColorClass(expense)">Total: ${{ expense.amount.toFixed(2) }}</div>
+          <div class="split-info">
+            <span class="split-type">
+              {{ expense.split_type === '50-50' ? '50/50 Split - Each owes $' + (expense.amount / 2).toFixed(2) : 
+                 '100% Other Pays - ' + (expense.user?.name) + ' paid, other owes $' + expense.amount.toFixed(2) }}
+            </span>
+            <div class="user-breakdown">
+              <div *ngFor="let user of users" class="user-split" 
+                   [ngClass]="getExpenseAmountClass(expense, user.id)">
+                <strong>{{ user.name }}:</strong>
+
+                <ng-container *ngIf="expense.split_type === '50-50'">
+                  {{ expense.user?.id === user.id ? 'Paid' : 'Owes' }} ${{ (expense.amount / 2).toFixed(2) }}
+                </ng-container>
+                <ng-container *ngIf="expense.split_type === '100-other'">
+                  <ng-container *ngIf="expense.user_id == user.id || expense.user?.id == user.id">
+                    Paid ${{ expense.amount.toFixed(2) }} (owes $0)
+                  </ng-container>
+                  <ng-container *ngIf="expense.user_id != user.id && expense.user?.id != user.id">
+                    Owes ${{ expense.amount.toFixed(2) }}
+                  </ng-container>
+                </ng-container>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
