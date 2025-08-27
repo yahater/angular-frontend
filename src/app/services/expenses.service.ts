@@ -1,28 +1,82 @@
+// Updated expenses.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { Category } from '../models/expense.model';
-import { environment } from '../../environments/environment';
+import { Observable, from } from 'rxjs';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({ providedIn: 'root' })
 export class ExpensesService {
-  private apiUrl = `${environment.apiBaseUrl}/expenses`; // backticks for template string your NestJS port
-
-  constructor(private http: HttpClient) {}
+  constructor(private supabaseService: SupabaseService) {}
 
   getExpenses(): Observable<any> {
-    return this.http.get(this.apiUrl);
+    return from(
+      this.supabaseService.client
+        .from('expenses')
+        .select(`
+          *,
+          users(id, name, email),
+          categories(id, name)
+        `)
+        .order('added_at', { ascending: false })
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data || [];
+        })
+    );
   }
 
-  createExpense(expense: { user_id: number; category_id: number; amount: number; description?: string; created_at: string; split_type: string; paid?: boolean }): Observable<any> {
-    return this.http.post(this.apiUrl, expense);
+  createExpense(expense: { 
+    user_id: number; 
+    category_id: number; 
+    amount: number; 
+    description?: string; 
+    created_at: string; 
+    split_type: string; 
+    paid?: boolean 
+  }): Observable<any> {
+    return from(
+      this.supabaseService.client
+        .from('expenses')
+        .insert(expense)
+        .select(`
+          *,
+          categories(id, name),
+          users(id, name, email)
+        `)
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data?.[0];
+        })
+    );
   }
 
   updateExpense(id: string, expense: any): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${id}`, expense);
+    return from(
+      this.supabaseService.client
+        .from('expenses')
+        .update(expense)
+        .eq('id', parseInt(id))
+        .select(`
+          *,
+          users(id, name, email),
+          categories(id, name)
+        `)
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data?.[0];
+        })
+    );
   }
 
   deleteExpense(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`);
+    return from(
+      this.supabaseService.client
+        .from('expenses')
+        .delete()
+        .eq('id', parseInt(id))
+        .then(({ error }) => {
+          if (error) throw error;
+          return { success: true };
+        })
+    );
   }
 }

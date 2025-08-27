@@ -1,22 +1,29 @@
+// Updated users.service.ts
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject } from 'rxjs';
+import { Observable, BehaviorSubject, from } from 'rxjs';
 import { User } from '../models/expense.model';
-import { environment } from '../../environments/environment';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
-  private apiUrl = `${environment.apiBaseUrl}/users`; // backticks for template string your NestJS port
   private primaryUserIdKey = 'primaryUserId';
   
   // Subject to notify other components when primary user changes
   private primaryUserIdSubject = new BehaviorSubject<number | null>(this.getPrimaryUserId());
   public primaryUserId$ = this.primaryUserIdSubject.asObservable();
   
-  constructor(private http: HttpClient) {}
+  constructor(private supabaseService: SupabaseService) {}
 
   getUsers(): Observable<any> {
-    return this.http.get(this.apiUrl);
+    return from(
+      this.supabaseService.client
+        .from('users')
+        .select('*')
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data || [];
+        })
+    );
   }
   
   // Get primary user ID from localStorage
@@ -32,18 +39,56 @@ export class UsersService {
   }
   
   getUserById(id: number): Observable<User> {
-    return this.http.get<User>(`${this.apiUrl}/${id}`);
+    return from(
+      this.supabaseService.client
+        .from('users')
+        .select('*')
+        .eq('id', id)
+        .single()
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data;
+        })
+    );
   }
 
   addUser(user: { name: string; email: string }): Observable<any> {
-    return this.http.post(this.apiUrl, user);
+    return from(
+      this.supabaseService.client
+        .from('users')
+        .insert(user)
+        .select()
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data?.[0];
+        })
+    );
   }
 
   updateUser(id: string, user: any): Observable<any> {
-    return this.http.patch(`${this.apiUrl}/${id}`, user);
+    return from(
+      this.supabaseService.client
+        .from('users')
+        .update(user)
+        .eq('id', parseInt(id))
+        .select()
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data?.[0];
+        })
+    );
   }
 
   deleteUser(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`);
+    return from(
+      this.supabaseService.client
+        .from('users')
+        .delete()
+        .eq('id', parseInt(id))
+        .then(({ error }) => {
+          if (error) throw error;
+          return { success: true };
+        })
+    );
   }
 }
