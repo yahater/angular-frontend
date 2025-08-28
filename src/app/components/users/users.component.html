@@ -1,35 +1,37 @@
 <div class="users-container">
   <div class="header">
     <h2>👥 Household Members</h2>
-    <p>The two people sharing expenses in this household</p>
+    <p>The people sharing expenses in this household</p>
   </div>
   
   <div class="users-grid">
     <div class="user-card" *ngFor="let user of users" 
          [class.primary-user]="user.id === primaryUserId">
-      <div class="user-avatar">
+      <div class="user-avatar" [class.primary-avatar]="user.id === primaryUserId">
         {{ user.name.charAt(0).toUpperCase() }}
       </div>
       <div class="user-info">
         <h3>{{ user.name }}</h3>
         <p class="user-id">User ID: {{ user.id }}</p>
         
-        <button class="set-primary-btn" 
-                *ngIf="user.id !== primaryUserId"
-                (click)="setPrimaryUser(user.id)">
-          🎯 Set as Primary
-        </button>
-        
-        <button class="primary-indicator" 
-                *ngIf="user.id === primaryUserId"
-                disabled>
-          ⭐ Primary User
-        </button>
+        <div class="user-actions">
+          <button class="btn-modern set-primary-btn" 
+                  *ngIf="user.id !== primaryUserId"
+                  (click)="setPrimaryUser(user.id)">
+            🎯 Set as Primary
+          </button>
+          
+          <div class="primary-badge" 
+               *ngIf="user.id === primaryUserId">
+            ⭐ Primary User
+          </div>
+        </div>
       </div>
     </div>
   </div>
   
-  <div *ngIf="users.length === 0" class="no-users">
+  <div *ngIf="users.length === 0" class="loading-state">
+    <div class="loading-spinner"></div>
     <p>🔄 Loading users...</p>
   </div>
 </div>

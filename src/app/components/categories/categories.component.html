@@ -6,7 +6,7 @@
   
   <div class="categories-grid">
     <div class="category-card" *ngFor="let category of categories" 
-         [style.border-left-color]="getCategoryColor(category.name)">
+         [style.--category-color]="getCategoryColor(category.name)">
       <div class="category-icon" [style.background-color]="getCategoryColor(category.name)">
         {{ getCategoryIcon(category.name) }}
       </div>
@@ -17,10 +17,12 @@
           {{ getCategoryDescription(category.name) }}
         </div>
       </div>
+      <div class="category-accent"></div>
     </div>
   </div>
   
-  <div *ngIf="categories.length === 0" class="no-categories">
-    <p>🔄 Loading categories...</p>
+  <div *ngIf="categories.length === 0" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>📄 Loading categories...</p>
   </div>
 </div>

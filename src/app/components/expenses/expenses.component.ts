@@ -28,6 +28,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
   Math = Math;
   
   // Primary user subscription
+  primaryUserId?: number;
   private primaryUserSubscription?: Subscription;
   
   // Form data
@@ -43,29 +44,28 @@ export class ExpensesComponent implements OnInit, OnDestroy {
 
   selectedCategory: string | number = 'all';
   showForm: boolean = false;
-  balance: { user1Owes: number; user2Owes: number; netBalance: number } = {
+  balance: { user1Owes: number; user2Owes: number; netBalance: number; user1Paid: number; user2Paid: number } = {
     user1Owes: 0,
     user2Owes: 0,
-    netBalance: 0
+    netBalance: 0,
+    user1Paid: 0,
+    user2Paid: 0
   };
 
   ngOnInit(): void {
     this.loadData();
-    
+
     // Subscribe to primary user changes
-    this.primaryUserSubscription = this.usersService.primaryUserId$.subscribe(
-      primaryUserId => {
-        if (primaryUserId && this.newExpense.user_id === 1) {
-          this.newExpense.user_id = primaryUserId;
-        }
+    this.primaryUserSubscription = this.usersService.primaryUserId$.subscribe(id => {
+      this.primaryUserId = id ?? undefined; // null → undefined
+      if (this.primaryUserId && this.newExpense.user_id === 1) {
+        this.newExpense.user_id = this.primaryUserId;
       }
-    );
+    });
   }
 
   ngOnDestroy(): void {
-    if (this.primaryUserSubscription) {
-      this.primaryUserSubscription.unsubscribe();
-    }
+    this.primaryUserSubscription?.unsubscribe();
   }
 
   loadData(): void {
@@ -165,66 +165,68 @@ export class ExpensesComponent implements OnInit, OnDestroy {
 
     // If we don't have both users, reset balance and exit
     if (user1Id == null || user2Id == null) {
-      this.balance = { user1Owes: 0, user2Owes: 0, netBalance: 0 };
+      this.balance = { 
+        user1Owes: 0, 
+        user2Owes: 0, 
+        netBalance: 0,
+        user1Paid: 0,
+        user2Paid: 0
+      };
       return;
     }
 
     // Work only with unpaid expenses (ignore already settled ones)
     const unpaidExpenses = (this.expenses ?? []).filter(e => !e.paid);
 
-    // Running totals for how much each user owes
+    // Running totals
     let user1Owes = 0;
     let user2Owes = 0;
+    let user1Paid = 0;
+    let user2Paid = 0;
 
     // Loop through every unpaid expense
     for (const e of unpaidExpenses) {
-      // Normalize payer (sometimes stored as user_id, sometimes inside user object)
       const payerRaw = e.user_id ?? e.user?.id;
       const payerId = payerRaw != null ? Number(payerRaw) : NaN;
-
-      // Normalize amount (force to number in case it comes as string)
       const amount = Number(e.amount);
-
-      // Normalize split type (trim + lowercase to make matching more robust)
       const split = (e.split_type ?? '').trim().toLowerCase();
 
-      // Skip invalid rows (NaN payer or amount)
       if (Number.isNaN(amount) || Number.isNaN(payerId)) {
         continue;
       }
 
-      // Flags to check who paid
       const isUser1Payer = payerId === Number(user1Id);
       const isUser2Payer = payerId === Number(user2Id);
+
+      // Track payments
+      if (isUser1Payer) {
+        user1Paid += amount;
+      } else if (isUser2Payer) {
+        user2Paid += amount;
+      }
 
       // Case 1: Split evenly
       if (split === '50-50' || split === '50/50') {
         const half = amount / 2;
         if (isUser1Payer) {
-          // If user1 paid, then user2 owes half
           user2Owes += half;
         } else if (isUser2Payer) {
-          // If user2 paid, then user1 owes half
           user1Owes += half;
         }
 
       // Case 2: Payer covers everything for the other person
       } else if (split === '100-other' || split === '100% other' || split === '100_other') {
         if (isUser1Payer) {
-          // User1 paid full, so user2 owes full amount
           user2Owes += amount;
         } else if (isUser2Payer) {
-          // User2 paid full, so user1 owes full amount
           user1Owes += amount;
         }
       }
     }
 
-    // Net balance: positive = user2 owes more, negative = user1 owes more
     const netBalance = user2Owes - user1Owes;
 
-    // Save results in the component's state
-    this.balance = { user1Owes, user2Owes, netBalance };
+    this.balance = { user1Owes, user2Owes, netBalance, user1Paid, user2Paid };
   }
 
   // Add a new expense
@@ -354,7 +356,7 @@ export class ExpensesComponent implements OnInit, OnDestroy {
     
     // Icon mappings
     if (name.includes('rent') || name.includes('housing')) return '🏠';
-    if (name.includes('food') || name.includes('groceries') || name.includes('grocery')) return '🥬';
+    if (name.includes('food') || name.includes('groceries') || name.includes('grocery')) return '🛒';
     if (name.includes('health') || name.includes('medical') || name.includes('pharmacy')) return '💊';
     if (name.includes('transport') || name.includes('car') || name.includes('gas')) return '🚗';
     if (name.includes('entertainment') || name.includes('fun')) return '🎬';
@@ -368,54 +370,6 @@ export class ExpensesComponent implements OnInit, OnDestroy {
     
     // Default icon
     return '📋';
-  }
-
-  // Get category color based on category name
-  getCategoryColor(categoryName: string | undefined): string {
-    if (!categoryName) return '#6B7280';
-    
-    const name = categoryName.toLowerCase();
-    
-    // Color mappings - using vibrant, distinct colors
-    if (name.includes('rent') || name.includes('housing')) return '#8B5CF6'; // Purple
-    if (name.includes('food') || name.includes('groceries') || name.includes('grocery')) return '#10B981'; // Green
-    if (name.includes('health') || name.includes('medical') || name.includes('pharmacy')) return '#3B82F6'; // Blue
-    if (name.includes('transport') || name.includes('car') || name.includes('gas')) return '#F59E0B'; // Amber
-    if (name.includes('entertainment') || name.includes('fun')) return '#EF4444'; // Red
-    if (name.includes('utilities') || name.includes('electricity') || name.includes('water')) return '#06B6D4'; // Cyan
-    if (name.includes('shopping') || name.includes('clothes') || name.includes('clothing')) return '#EC4899'; // Pink
-    if (name.includes('restaurant') || name.includes('dining')) return '#F97316'; // Orange
-    if (name.includes('travel') || name.includes('vacation')) return '#84CC16'; // Lime
-    if (name.includes('education') || name.includes('school')) return '#6366F1'; // Indigo
-    if (name.includes('fitness') || name.includes('gym') || name.includes('sport')) return '#14B8A6'; // Teal
-    if (name.includes('pet') || name.includes('animal')) return '#A855F7'; // Violet
-    
-    // Default color
-    return '#6B7280'; // Gray
-  }
-
-  // Get amount color class based on primary user and who paid
-  getAmountColorClass(expense: Expense): string {
-    if (expense.paid) return 'amount-paid-settled'; // Neutral color for settled expenses
-    
-    const primaryUserId = this.usersService.getPrimaryUserId();
-    const expenseUserId = expense.user_id ?? expense.user?.id;
-    
-    if (!primaryUserId) return 'amount-neutral';
-    
-    const primaryUserPaid = Number(expenseUserId) === Number(primaryUserId);
-    
-    if (expense.split_type === '50-50') {
-      // In 50-50 split, primary user always owes something regardless of who paid
-      // Green if primary user paid (they're owed back), red if they didn't pay (they owe)
-      return primaryUserPaid ? 'amount-owed-to-me' : 'amount-i-owe';
-    } else if (expense.split_type === '100-other') {
-      // In 100-other, whoever paid covers it all for the other person
-      // Green if primary user paid (other owes them), red if other paid (primary owes)
-      return primaryUserPaid ? 'amount-owed-to-me' : 'amount-i-owe';
-    }
-    
-    return 'amount-neutral';
   }
 
   // Decide which CSS class to apply for an expense amount display
@@ -445,4 +399,156 @@ export class ExpensesComponent implements OnInit, OnDestroy {
     // Otherwise show full amount
     return expense.amount;
   }
+
+  // Get the primary user's name for greeting
+  getPrimaryUserName(): string {
+    const primaryUserId = this.usersService.getPrimaryUserId();
+    const primaryUser = this.users.find(user => user.id === primaryUserId);
+    return primaryUser ? primaryUser.name : (this.users[0]?.name || 'User');
+  }
+
+  // Check if primary user is owed money (for positive balance styling)
+  isPrimaryUserOwed(): boolean {
+    const primaryUserId = this.usersService.getPrimaryUserId();
+    if (!primaryUserId || this.users.length < 2) return false;
+    
+    const user1Id = this.users[0]?.id;
+    const user2Id = this.users[1]?.id;
+    
+    if (primaryUserId === user1Id) {
+      return this.balance.user2Owes > this.balance.user1Owes;
+    } else if (primaryUserId === user2Id) {
+      return this.balance.user1Owes > this.balance.user2Owes;
+    }
+    
+    return false;
+  }
+
+  // Check if primary user owes money (for negative balance styling)
+  isPrimaryUserOwing(): boolean {
+    const primaryUserId = this.usersService.getPrimaryUserId();
+    if (!primaryUserId || this.users.length < 2) return false;
+    
+    const user1Id = this.users[0]?.id;
+    const user2Id = this.users[1]?.id;
+    
+    if (primaryUserId === user1Id) {
+      return this.balance.user1Owes > this.balance.user2Owes;
+    } else if (primaryUserId === user2Id) {
+      return this.balance.user2Owes > this.balance.user1Owes;
+    }
+    
+    return false;
+  }
+
+  // Get the net balance text from primary user's perspective
+  getNetBalanceText(): string {
+    const primaryUserId = this.usersService.getPrimaryUserId();
+    if (!primaryUserId || this.users.length < 2) {
+      return 'No balance data';
+    }
+
+    const user1Id = this.users[0]?.id;
+    const user2Id = this.users[1]?.id;
+    const netAmount = Math.abs(this.balance.netBalance);
+
+    if (netAmount < 0.01) {
+      return 'All settled up!';
+    }
+
+    if (primaryUserId === user1Id) {
+      if (this.balance.user1Owes > this.balance.user2Owes) {
+        return `You owe €${netAmount.toFixed(2)}`;
+      } else {
+        return `You are owed €${netAmount.toFixed(2)}`;
+      }
+    } else if (primaryUserId === user2Id) {
+      if (this.balance.user2Owes > this.balance.user1Owes) {
+        return `You owe €${netAmount.toFixed(2)}`;
+      } else {
+        return `You are owed €${netAmount.toFixed(2)}`;
+      }
+    }
+
+    return 'Balance unknown';
+  }
+
+  // Get display amount with + or - sign for banking app style
+  getDisplayAmountWithSign(expense: Expense): string {
+    const primaryUserId = this.usersService.getPrimaryUserId();
+    const expenseUserId = expense.user_id ?? expense.user?.id;
+    
+    if (!primaryUserId) {
+      return `€${expense.amount.toFixed(2)}`;
+    }
+
+    const primaryUserPaid = Number(expenseUserId) === Number(primaryUserId);
+    let amount = expense.amount;
+    
+    // For 50-50 split, show half the amount
+    if (expense.split_type === '50-50') {
+      amount = expense.amount / 2;
+    }
+
+    if (expense.paid) {
+      return `€${amount.toFixed(2)}`;
+    }
+
+    // Determine if this is money going out (-) or coming in (+) for primary user
+    if (expense.split_type === '50-50') {
+      // In 50-50, if primary user didn't pay, they owe (negative)
+      return primaryUserPaid ? `+€${amount.toFixed(2)}` : `-€${amount.toFixed(2)}`;
+    } else if (expense.split_type === '100-other') {
+      // In 100-other, if primary user didn't pay, they owe full amount (negative)
+      return primaryUserPaid ? `+€${amount.toFixed(2)}` : `-€${amount.toFixed(2)}`;
+    }
+
+    return `€${amount.toFixed(2)}`;
+  }
+
+  // Updated getAmountColorClass method to work with the new banking style
+  getAmountColorClass(expense: Expense): string {
+    if (expense.paid) return 'amount-paid-settled';
+    
+    const primaryUserId = this.usersService.getPrimaryUserId();
+    const expenseUserId = expense.user_id ?? expense.user?.id;
+    
+    if (!primaryUserId) return 'amount-neutral';
+    
+    const primaryUserPaid = Number(expenseUserId) === Number(primaryUserId);
+    
+    if (expense.split_type === '50-50') {
+      // Green if primary user paid (they're owed back), red if they didn't pay (they owe)
+      return primaryUserPaid ? 'amount-owed-to-me' : 'amount-i-owe';
+    } else if (expense.split_type === '100-other') {
+      // Green if primary user paid (other owes them), red if other paid (primary owes)
+      return primaryUserPaid ? 'amount-owed-to-me' : 'amount-i-owe';
+    }
+    
+    return 'amount-neutral';
+  }
+
+  // Updated getCategoryColor method - more subdued banking colors
+  getCategoryColor(categoryName: string | undefined): string {
+    if (!categoryName) return '#64748b';
+    
+    const name = categoryName.toLowerCase();
+    
+    // Subdued banking app colors
+    if (name.includes('rent') || name.includes('housing')) return '#6366f1'; // Indigo
+    if (name.includes('food') || name.includes('groceries') || name.includes('grocery')) return '#16a34a'; // Green
+    if (name.includes('health') || name.includes('medical') || name.includes('pharmacy')) return '#3b82f6'; // Blue
+    if (name.includes('transport') || name.includes('car') || name.includes('gas')) return '#f59e0b'; // Amber
+    if (name.includes('entertainment') || name.includes('fun')) return '#ef4444'; // Red
+    if (name.includes('utilities') || name.includes('electricity') || name.includes('water')) return '#0891b2'; // Cyan
+    if (name.includes('shopping') || name.includes('clothes') || name.includes('clothing')) return '#ec4899'; // Pink
+    if (name.includes('restaurant') || name.includes('dining')) return '#f97316'; // Orange
+    if (name.includes('travel') || name.includes('vacation')) return '#84cc16'; // Lime
+    if (name.includes('education') || name.includes('school')) return '#8b5cf6'; // Purple
+    if (name.includes('fitness') || name.includes('gym') || name.includes('sport')) return '#14b8a6'; // Teal
+    if (name.includes('pet') || name.includes('animal')) return '#a855f7'; // Violet
+    
+    return '#64748b'; // Gray
+  }
+
 }
