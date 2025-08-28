@@ -12,7 +12,6 @@ import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
         <div class="nav-links">
           <a routerLink="/expenses" routerLinkActive="active">Expenses</a>
           <a routerLink="/users" routerLinkActive="active">Users</a>
-          <a routerLink="/categories" routerLinkActive="active">Categories</a>
         </div>
       </nav>
       <router-outlet></router-outlet>
