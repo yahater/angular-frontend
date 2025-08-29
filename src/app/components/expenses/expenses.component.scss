@@ -125,11 +125,13 @@
   .hot-buttons {
     display: flex;
     gap: 0.5rem;
+    justify-content: center;
 
     .hot-btn {
       padding: 0.5rem 0.875rem;
       border: 1px solid #cbd5e1;
       border-radius: 6px;
+      justify-content: center;
       background: white;
       color: #475569;
       font-size: 0.85rem;
@@ -148,6 +150,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    justify-content: right;
 
     label {
       color: #64748b;
@@ -335,8 +338,8 @@
 
 .expense-primary-line {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 2rem; /* Reduced from 1rem */
 }
 
 .expense-description {
@@ -437,8 +440,39 @@
   }
 }
 
+/* Month Divider Styles */
+.month-divider {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  .month-header {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #475569;
+  }
+
+  .month-total {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+  }
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
+  
+  .expense-primary-line {
+  gap: 2rem; /* Reduced from 0.5rem */
+  }
+  
   .form-row {
     grid-template-columns: 1fr;
   }

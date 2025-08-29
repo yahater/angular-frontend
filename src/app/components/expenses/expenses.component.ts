@@ -550,5 +550,42 @@ export class ExpensesComponent implements OnInit, OnDestroy {
     
     return '#64748b'; // Gray
   }
+  // Add this method to your component class
+  getExpensesByMonth() {
+    if (!this.filteredExpenses || this.filteredExpenses.length === 0) {
+      return [];
+    }
+
+    // Group expenses by month/year
+    const groupedExpenses = new Map<string, any[]>();
+    
+    this.filteredExpenses.forEach(expense => {
+      const expenseDate = new Date(expense.created_at);
+      const monthYear = expenseDate.toLocaleString('default', { 
+        month: 'long', 
+        year: 'numeric' 
+      });
+      
+      if (!groupedExpenses.has(monthYear)) {
+        groupedExpenses.set(monthYear, []);
+      }
+      groupedExpenses.get(monthYear)!.push(expense);
+    });
+
+    // Convert to array and sort by date (most recent first)
+    const monthGroups = Array.from(groupedExpenses.entries()).map(([monthYear, expenses]) => {
+      // Sort expenses within each month by date (most recent first)
+      expenses.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      return {
+        monthYear,
+        expenses,
+        sortDate: new Date(expenses[0].created_at) // Use first expense date for sorting months
+      };
+    });
+
+    // Sort month groups by date (most recent first)
+    return monthGroups.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+  }
 
 }

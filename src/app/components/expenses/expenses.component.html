@@ -112,39 +112,51 @@
       No expenses found. Add your first expense above!
     </div>
 
-    <div class="expense-item" 
-         *ngFor="let expense of filteredExpenses" 
-         [class.paid-expense]="expense.paid"
-         [style.--category-color]="getCategoryColor(expense.category?.name)">
-      <div class="expense-content">
-        <div class="expense-main">
-          <div class="category-icon-small" 
-               [style.background-color]="getCategoryColor(expense.category?.name)">
-            {{ getCategoryIcon(expense.category?.name) }}
-          </div>
-          <div class="expense-details">
-            <div class="expense-primary-line">
-              <div class="expense-description">{{ expense.description || 'No description' }}</div>
-              <div class="expense-amount-main" [ngClass]="getAmountColorClass(expense)">
-                {{ getDisplayAmountWithSign(expense) }}
+    <!-- Group expenses by month -->
+    <ng-container *ngFor="let monthGroup of getExpensesByMonth()">
+      <!-- Month Divider -->
+      <div class="month-divider">
+        <h4 class="month-header">{{ monthGroup.monthYear }}</h4>
+        <span class="month-total">{{ monthGroup.expenses.length }} transaction{{ monthGroup.expenses.length !== 1 ? 's' : '' }}</span>
+      </div>
+
+      <!-- Expenses for this month -->
+      <div class="expense-item" 
+           *ngFor="let expense of monthGroup.expenses" 
+           [class.paid-expense]="expense.paid"
+           [style.--category-color]="getCategoryColor(expense.category?.name)">
+        <div class="expense-content">
+          <div class="expense-main">
+            <div class="category-icon-small" 
+                 [style.background-color]="getCategoryColor(expense.category?.name)">
+              {{ getCategoryIcon(expense.category?.name) }}
+            </div>
+            <div class="expense-details">
+              <div class="expense-primary-line">
+                <div class="expense-description">{{ expense.description || 'No description' }}</div>
+                <div class="expense-amount-main" [ngClass]="getAmountColorClass(expense)">
+                  {{ getDisplayAmountWithSign(expense) }}
+                </div>
+              </div>
+              <div class="expense-meta">
+                <span class="expense-user-tag">{{ expense.user?.name }}</span>
+                <span class="expense-category-tag">{{ expense.category?.name | titlecase }}</span>
+                <span class="expense-date">{{ expense.created_at | date:'MMM dd' }}</span>
               </div>
             </div>
-            <div class="expense-meta">
-              <span class="expense-user-tag">{{ expense.user?.name }}</span>
-              <span class="expense-category-tag">{{ expense.category?.name | titlecase }}</span>
-              <span class="expense-date">{{ expense.created_at | date:'MMM dd' }}</span>
-            </div>
+          </div>
+          <div class="expense-actions">
+            <button (click)="togglePaid(expense)" 
+                    class="toggle-paid-btn" 
+                    [class.paid]="expense.paid">
+              {{ expense.paid ? 'Paid' : 'Mark Paid' }}
+            </button>
+            <button (click)="deleteExpense(expense.id)" class="delete-btn">×</button>
           </div>
         </div>
-        <div class="expense-actions">
-          <button (click)="togglePaid(expense)" 
-                  class="toggle-paid-btn" 
-                  [class.paid]="expense.paid">
-            {{ expense.paid ? 'Paid' : 'Mark Paid' }}
-          </button>
-          <button (click)="deleteExpense(expense.id)" class="delete-btn">×</button>
-        </div>
       </div>
-    </div>
+    </ng-container>
   </div>
 </div>
+
+
