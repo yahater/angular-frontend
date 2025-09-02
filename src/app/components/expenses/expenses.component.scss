@@ -338,7 +338,7 @@
 .expense-primary-line {
   display: flex;
   align-items: center;
-  gap: 2rem; /* Reduced from 1rem */
+  gap: 4rem; /* Reduced from 1rem */
 }
 
 .expense-description {
@@ -469,7 +469,7 @@
 @media (max-width: 768px) {
   
   .expense-primary-line {
-  gap: 2rem; /* Reduced from 0.5rem */
+  gap: 1rem; /* Reduced from 0.5rem */
   }
   
   .form-row {
