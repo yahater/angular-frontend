@@ -64,7 +64,7 @@
         
         <div class="form-group">
           <label>Amount (€)</label>
-          <input type="number" [(ngModel)]="newExpense.amount" name="amount" min="0" step="0.01" required>
+          <input type="number" [(ngModel)]="newExpense.amount" name="amount" min="0" step="0.01" required placeholder="0" class="amount-input" [class.placeholder-visible]="newExpense.amount === 0" (focus)="onAmountFocus()" (blur)="onAmountBlur()">
         </div>
       </div>
 

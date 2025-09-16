@@ -231,13 +231,19 @@ export class ExpensesComponent implements OnInit, OnDestroy {
 
   // Add a new expense
   addExpense(): void {
+    // Ensure amount is set to 0 if undefined/null before saving
+    if (!this.newExpense.amount || this.newExpense.amount === null || this.newExpense.amount === undefined) {
+      this.newExpense.amount = 0;
+    }
+    
     // Prepare payload (only send IDs, not full user/category objects)
     const payload = {
       ...this.newExpense,
       user_id: this.newExpense.user_id,
-      category_id: this.newExpense.category_id
+      category_id: this.newExpense.category_id,
+      amount: this.newExpense.amount || 0 // Extra safety check for amount
     };
-
+    
     // Call API to create new expense
     this.expensesService.createExpense(payload).subscribe({
       next: () => {
@@ -303,7 +309,21 @@ export class ExpensesComponent implements OnInit, OnDestroy {
       this.showForm = false;
     }
   }
-
+  
+  onAmountFocus(): void {
+    // Clear the field when user focuses if it's 0
+    if (this.newExpense.amount === 0) {
+      this.newExpense.amount = null as any;
+    }
+  }
+  
+  onAmountBlur(): void {
+    // Set to 0 if field is empty when user leaves the field
+    if (!this.newExpense.amount || this.newExpense.amount === null || this.newExpense.amount === undefined) {
+      this.newExpense.amount = 0;
+    }
+  }
+  
   // Hot button presets
   usePreset(presetType: 'hofer' | 'apotheke' | 'bipa'): void {
     // Set primary user as default
